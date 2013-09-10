@@ -40,6 +40,7 @@ unsigned char seq_nt4_table[256] = {
 struct __bcf_p1aux_t {
 	int n, M, n1, is_indel;
 	uint8_t *ploidy; // haploid or diploid ONLY
+	float *lk;
 	double *q2p, *pdg; // pdg -> P(D|g)
 	double *phi, *phi_indel;
 	double *z, *zswap; // aux for afs
@@ -161,6 +162,7 @@ bcf_p1aux_t *bcf_p1_init(int n, uint8_t *ploidy)
 	ma->afs = calloc(ma->M + 1, sizeof(double));
 	ma->afs1 = calloc(ma->M + 1, sizeof(double));
 	ma->lf = calloc(ma->M + 1, sizeof(double));
+	ma->lk = calloc(ma->M + 1, sizeof(float));
 	for (i = 0; i < 256; ++i)
 		ma->q2p[i] = pow(10., -i / 10.);
 	for (i = 0; i <= ma->M; ++i) ma->lf[i] = lgamma(i + 1);
@@ -201,6 +203,7 @@ void bcf_p1_destroy(bcf_p1aux_t *ma)
 		free(ma->phi); free(ma->phi_indel); free(ma->phi1); free(ma->phi2);
 		free(ma->z); free(ma->zswap); free(ma->z1); free(ma->z2);
 		free(ma->afs); free(ma->afs1);
+		free(ma->lk);
 		free(ma);
 	}
 }
@@ -754,8 +757,18 @@ static void mc_cal_y_core(bcf_p1aux_t *ma, int beg)
 		}
 	}
 	if (z[0] != ma->z) memcpy(ma->z, z[0], sizeof(double) * (ma->M + 1));
-	if (bcf_p1_fp_lk)
-		gzwrite(bcf_p1_fp_lk, ma->z, sizeof(double) * (ma->M + 1));
+	if (bcf_p1_fp_lk) {
+		int k;
+		long double sum = 0.;
+		for (k = 0; k <= ma->M; ++k) {
+			ma->zswap[k] = ma->z[k] > 1e-10? ma->z[k] : 0;
+			sum += ma->zswap[k];
+		}
+		sum = 1. / sum;
+		for (k = 0; k <= ma->M; ++k)
+			ma->lk[k] = (float)(ma->zswap[k] * sum);
+		gzwrite(bcf_p1_fp_lk, ma->lk, sizeof(float) * (ma->M + 1));
+	}
 }
 
 static void mc_cal_y(bcf_p1aux_t *ma)
