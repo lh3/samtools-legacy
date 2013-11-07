@@ -117,6 +117,7 @@ static int mplp_func(void *data, bam1_t *b)
 		int has_ref;
 		ret = ma->iter? bam_iter_read(ma->fp, ma->iter, b) : bam_read1(ma->fp, b);
 		if (ret < 0) break;
+		if (b->core.qual > ma->conf->max_mq) b->core.qual = ma->conf->max_mq;
 		if (b->core.tid < 0 || (b->core.flag&BAM_FUNMAP)) { // exclude unmapped reads
 			skip = 1;
 			continue;
