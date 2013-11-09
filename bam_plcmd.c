@@ -86,6 +86,7 @@ typedef struct {
     int rflag_require, rflag_filter;
 	int openQ, extQ, tandemQ, min_support; // for indels
 	double min_frac; // for indels
+	double max_mis_frac; // skip an alignment if (NM-I-D+S) / (M+S) > max_mis_frac
 	char *reg, *pl_list, *fai_fname;
 	faidx_t *fai;
 	void *bed, *rghash;
@@ -106,6 +107,28 @@ typedef struct {
 	bam_pileup1_t **plp;
 } mplp_pileup_t;
 
+static double cal_mis_frac(const bam1_t *b)
+{
+	int i, l, n_gaps, nm, l_clip, l_match;
+	uint8_t *nm_str;
+	const uint32_t *cigar;
+	nm_str = bam_aux_get(b, "NM");
+	if (nm_str == 0) return 0;
+	nm = bam_aux2i(nm_str);
+	cigar = bam1_cigar(b);
+	l = l_clip = l_match = 0;
+	for (i = 0; i < b->core.n_cigar; ++i) {
+		int op, len;
+		op = bam_cigar_op(cigar[i]);
+		len = bam_cigar_oplen(cigar[i]);
+		l += len;
+		if (op == BAM_CMATCH) l_match += len;
+		else if (op == BAM_CSOFT_CLIP || op == BAM_CHARD_CLIP) l_clip += len;
+		else if (op == BAM_CINS || op == BAM_CDEL) n_gaps += len;
+	}
+	return (double)(nm - n_gaps + l_clip) / (l_match + l_clip);
+}
+
 static int mplp_func(void *data, bam1_t *b)
 {
 	extern int bam_realn(bam1_t *b, const char *ref);
@@ -124,6 +147,7 @@ static int mplp_func(void *data, bam1_t *b)
 		}
         if (ma->conf->rflag_require && !(ma->conf->rflag_require&b->core.flag)) { skip = 1; continue; }
         if (ma->conf->rflag_filter && ma->conf->rflag_filter&b->core.flag) { skip = 1; continue; }
+		if (ma->conf->max_mis_frac > 0 && cal_mis_frac(b) > ma->conf->max_mis_frac) { skip = 1; continue; }
 		if (ma->conf->bed) { // test overlap
 			skip = !bed_overlap(ma->conf->bed, ma->h->target_name[b->core.tid], b->core.pos, bam_calend(&b->core, bam1_cigar(b)));
 			if (skip) continue;
@@ -502,7 +526,7 @@ int bam_mpileup(int argc, char *argv[])
         {"ff",1,0,2},   // filter flag
         {0,0,0,0}
     };
-	while ((c = getopt_long(argc, argv, "Agf:r:l:M:q:Q:uaRC:BDSd:L:b:P:po:e:h:Im:F:EG:6OsV1:2:",lopts,NULL)) >= 0) {
+	while ((c = getopt_long(argc, argv, "Agf:r:l:M:q:Q:uaRC:BDSd:L:b:P:po:e:h:Im:F:EG:6OsV1:2:y:",lopts,NULL)) >= 0) {
 		switch (c) {
         case  1 : mplp.rflag_require = strtol(optarg,0,0); break;
         case  2 : mplp.rflag_filter  = strtol(optarg,0,0); break;
@@ -541,6 +565,7 @@ int bam_mpileup(int argc, char *argv[])
 		case 'F': mplp.min_frac = atof(optarg); break;
 		case 'm': mplp.min_support = atoi(optarg); break;
 		case 'L': mplp.max_indel_depth = atoi(optarg); break;
+		case 'y': mplp.max_mis_frac = atof(optarg); break;
 		case 'G': {
 				FILE *fp_rg;
 				char buf[1024];
@@ -570,6 +595,7 @@ int bam_mpileup(int argc, char *argv[])
 		fprintf(stderr, "       -G FILE      exclude read groups listed in FILE [null]\n");
 		fprintf(stderr, "       -l FILE      list of positions (chr pos) or regions (BED) [null]\n");
 		fprintf(stderr, "       -M INT       cap mapping quality at INT [%d]\n", mplp.max_mq);
+		fprintf(stderr, "       -y FLOAT     drop an alignment if (NM - I - D + S) / (M + S) > FLOAT; 0 to disable [0]\n");
 		fprintf(stderr, "       -r STR       region in which pileup is generated [null]\n");
 		fprintf(stderr, "       -R           ignore RG tags\n");
 		fprintf(stderr, "       -q INT       skip alignments with mapQ smaller than INT [%d]\n", mplp.min_mq);
