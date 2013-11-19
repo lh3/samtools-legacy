@@ -4,7 +4,11 @@
 #include "khash.h"
 #include "ksort.h"
 #include "bam_endian.h"
-#ifdef _USE_KNETFILE
+
+#if defined(_USE_KURL)
+#include "kurl.h"
+#define _USE_KNETFILE
+#elif defined(_USE_KNETFILE)
 #include "knetfile.h"
 #endif
 
@@ -404,7 +408,11 @@ bam_index_t *bam_index_load_local(const char *_fn)
 	FILE *fp;
 	char *fnidx, *fn;
 
+#ifdef _USE_KURL
+	if (strstr(_fn, "://")) {
+#else
 	if (strstr(_fn, "ftp://") == _fn || strstr(_fn, "http://") == _fn) {
+#endif
 		const char *p;
 		int l = strlen(_fn);
 		for (p = _fn + l - 1; p >= _fn; --p)
@@ -439,7 +447,11 @@ static void download_from_remote(const char *url)
 	uint8_t *buf;
 	knetFile *fp_remote;
 	int l;
+#ifdef _USE_KURL
+	if (strstr(url, "://") == 0) return;
+#else
 	if (strstr(url, "ftp://") != url && strstr(url, "http://") != url) return;
+#endif
 	l = strlen(url);
 	for (fn = (char*)url + l - 1; fn >= url; --fn)
 		if (*fn == '/') break;
