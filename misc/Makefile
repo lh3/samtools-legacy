@@ -28,7 +28,7 @@ lib-recur all-recur clean-recur cleanlocal-recur install-recur:
 lib:
 
 bamcheck:bamcheck.o
-		$(CC) $(CFLAGS) -o $@ bamcheck.o -L.. -lm -lbam -lpthread -lz
+		$(CC) $(CFLAGS) -o $@ bamcheck.o -L.. -lm -lbam -lpthread -lz -lcurl
 
 bamcheck.o:bamcheck.c ../faidx.h ../khash.h ../sam.h ../razf.h
 		$(CC) $(CFLAGS) -c -I.. -o $@ bamcheck.c

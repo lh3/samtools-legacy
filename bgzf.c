@@ -31,8 +31,16 @@
 #include <sys/types.h>
 #include "bgzf.h"
 
+#ifdef _USE_KURL
+#define _USE_KNETFILE
+#endif
+
 #ifdef _USE_KNETFILE
+#ifdef _USE_KURL
+#include "kurl.h"
+#else
 #include "knetfile.h"
+#endif
 typedef knetFile *_bgzf_file_t;
 #define _bgzf_open(fn, mode) knet_open(fn, mode)
 #define _bgzf_dopen(fp, mode) knet_dopen(fp, mode)

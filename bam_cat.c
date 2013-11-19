@@ -59,7 +59,12 @@ all:bam_cat
 #include <stdlib.h>
 #include <unistd.h>
 
+#ifdef _USE_KURL
+#include "kurl.h"
+#define _USE_KNETFILE
+#else
 #include "knetfile.h"
+#endif
 #include "bgzf.h"
 #include "bam.h"
 
