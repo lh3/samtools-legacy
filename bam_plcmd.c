@@ -76,6 +76,7 @@ static inline void pileup_seq(const bam_pileup1_t *p, int pos, int ref_len, cons
 #define MPLP_PRINT_POS 0x4000
 #define MPLP_PRINT_MAPQ 0x8000
 #define MPLP_PER_SAMPLE 0x10000
+#define MPLP_IGNORE_MAPQ 0x20000
 
 void *bed_read(const char *fn);
 void bed_destroy(void *_h);
@@ -328,6 +329,7 @@ static int mpileup(mplp_conf_t *conf, int n, char **fn)
 		bcf_hdr_write(bp, bh);
 		bca = bcf_call_init(-1., conf->min_baseQ);
 		bcr = calloc(sm->n, sizeof(bcf_callret1_t));
+		bca->ignore_mapQ = !!(conf->flag & MPLP_IGNORE_MAPQ);
 		bca->rghash = rghash;
 		bca->openQ = conf->openQ, bca->extQ = conf->extQ, bca->tandemQ = conf->tandemQ;
 		bca->min_frac = conf->min_frac;
@@ -526,7 +528,7 @@ int bam_mpileup(int argc, char *argv[])
         {"ff",1,0,2},   // filter flag
         {0,0,0,0}
     };
-	while ((c = getopt_long(argc, argv, "Agf:r:l:M:q:Q:uaRC:BDSd:L:b:P:po:e:h:Im:F:EG:6OsV1:2:y:",lopts,NULL)) >= 0) {
+	while ((c = getopt_long(argc, argv, "ZAgf:r:l:M:q:Q:uaRC:BDSd:L:b:P:po:e:h:Im:F:EG:6OsV1:2:y:",lopts,NULL)) >= 0) {
 		switch (c) {
         case  1 : mplp.rflag_require = strtol(optarg,0,0); break;
         case  2 : mplp.rflag_filter  = strtol(optarg,0,0); break;
@@ -553,6 +555,7 @@ int bam_mpileup(int argc, char *argv[])
 		case 'R': mplp.flag |= MPLP_IGNORE_RG; break;
 		case 's': mplp.flag |= MPLP_PRINT_MAPQ; break;
 		case 'O': mplp.flag |= MPLP_PRINT_POS; break;
+		case 'Z': mplp.flag |= MPLP_IGNORE_MAPQ; break;
 		case 'C': mplp.capQ_thres = atoi(optarg); break;
 		case 'M': mplp.max_mq = atoi(optarg); break;
 		case 'q': mplp.min_mq = atoi(optarg); break;
@@ -595,6 +598,7 @@ int bam_mpileup(int argc, char *argv[])
 		fprintf(stderr, "       -G FILE      exclude read groups listed in FILE [null]\n");
 		fprintf(stderr, "       -l FILE      list of positions (chr pos) or regions (BED) [null]\n");
 		fprintf(stderr, "       -M INT       cap mapping quality at INT [%d]\n", mplp.max_mq);
+		fprintf(stderr, "       -Z           ignore mapping quality\n");
 		fprintf(stderr, "       -y FLOAT     drop an alignment if (NM - I - D + S) / (M + S) > FLOAT; 0 to disable [0]\n");
 		fprintf(stderr, "       -r STR       region in which pileup is generated [null]\n");
 		fprintf(stderr, "       -R           ignore RG tags\n");

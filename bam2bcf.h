@@ -23,6 +23,7 @@ typedef struct __bcf_callaux_t {
 	int indel_types[4];
 	int maxins, indelreg;
     int read_len;
+	int ignore_mapQ;
 	char *inscns;
 	uint16_t *bases;
 	errmod_t *e;

@@ -102,7 +102,7 @@ int bcf_call_glfgen(int _n, const bam_pileup1_t *pl, int ref_base, bcf_callaux_t
 		if (q > seqQ) q = seqQ;
 		mapQ = p->b->core.qual < 255? p->b->core.qual : DEF_MAPQ; // special case for mapQ==255
 		mapQ = mapQ < bca->capQ? mapQ : bca->capQ;
-		if (q > mapQ) q = mapQ;
+		if (q > mapQ && !bca->ignore_mapQ) q = mapQ;
 		if (q > 63) q = 63;
 		if (q < 4) q = 4;
 		if (!is_indel) {
