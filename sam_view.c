@@ -22,7 +22,7 @@ typedef khash_t(rg) *rghash_t;
 
 // FIXME: we'd better use no global variables...
 static rghash_t g_rghash = 0;
-static int g_min_mapQ = 0, g_flag_on = 0, g_flag_off = 0, g_qual_scale = 0, g_min_qlen = 0;
+static int g_min_mapQ = 0, g_flag_on = 0, g_flag_off = 0, g_qual_scale = 0, g_min_qlen = 0, g_min_alen = 0;
 static uint32_t g_subsam_seed = 0;
 static double g_subsam_frac = -1.;
 static char *g_library, *g_rg;
@@ -42,13 +42,16 @@ static int process_aln(const bam_header_t *h, bam1_t *b)
 			qual[i] = c < 93? c : 93;
 		}
 	}
-	if (g_min_qlen > 0) {
-		int k, qlen = 0;
+	if (g_min_qlen > 0 || g_min_alen > 0) {
+		int k, qlen = 0, alen = 0;
 		uint32_t *cigar = bam1_cigar(b);
-		for (k = 0; k < b->core.n_cigar; ++k)
-			if ((bam_cigar_type(bam_cigar_op(cigar[k]))&1) || bam_cigar_op(cigar[k]) == BAM_CHARD_CLIP)
-				qlen += bam_cigar_oplen(cigar[k]);
-		if (qlen < g_min_qlen) return 1;
+		for (k = 0; k < b->core.n_cigar; ++k) {
+			int l = bam_cigar_oplen(cigar[k]);
+			if ((bam_cigar_type(bam_cigar_op(cigar[k]))&1)) alen += l, qlen += l;
+			else if (bam_cigar_op(cigar[k]) == BAM_CHARD_CLIP) qlen += l;
+		}
+		if (g_min_qlen > 0 && qlen < g_min_qlen) return 1;
+		if (g_min_alen > 0 && qlen < g_min_alen) return 1;
 	}
 	if (b->core.qual < g_min_mapQ || ((b->core.flag & g_flag_on) != g_flag_on) || (b->core.flag & g_flag_off))
 		return 1;
@@ -135,7 +138,7 @@ int main_samview(int argc, char *argv[])
 
 	/* parse command-line options */
 	strcpy(in_mode, "r"); strcpy(out_mode, "w");
-	while ((c = getopt(argc, argv, "SbBct:h1Ho:q:f:F:ul:r:xX?T:R:L:s:Q:@:m:")) >= 0) {
+	while ((c = getopt(argc, argv, "SbBct:h1Ho:q:f:F:ul:r:xX?T:R:L:s:Q:@:m:M:")) >= 0) {
 		switch (c) {
 		case 's':
 			if ((g_subsam_seed = strtol(optarg, &q, 10)) != 0) {
@@ -144,6 +147,7 @@ int main_samview(int argc, char *argv[])
 			}
 			g_subsam_frac = strtod(q, &q);
 			break;
+		case 'M': g_min_alen = atoi(optarg); break;
 		case 'm': g_min_qlen = atoi(optarg); break;
 		case 'c': is_count = 1; break;
 		case 'S': is_bamin = 0; break;
