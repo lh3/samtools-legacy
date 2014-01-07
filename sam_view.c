@@ -51,7 +51,7 @@ static int process_aln(const bam_header_t *h, bam1_t *b)
 			else if (bam_cigar_op(cigar[k]) == BAM_CHARD_CLIP) qlen += l;
 		}
 		if (g_min_qlen > 0 && qlen < g_min_qlen) return 1;
-		if (g_min_alen > 0 && qlen < g_min_alen) return 1;
+		if (g_min_alen > 0 && alen < g_min_alen) return 1;
 	}
 	if (b->core.qual < g_min_mapQ || ((b->core.flag & g_flag_on) != g_flag_on) || (b->core.flag & g_flag_off))
 		return 1;

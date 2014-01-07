@@ -41,7 +41,7 @@
  */
 
 #ifndef VERSION
-#define BAM_VERSION "r593"
+#define BAM_VERSION "r594"
 #else
 #define BAM_VERSION VERSION
 #endif
